@@ -1,0 +1,56 @@
+name: CI
+
+# Lints the shell scripts and workflows, runs the end-to-end tests against
+# fake certbot and aws commands, and builds the image the tests also run in.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # ShellCheck is preinstalled on the runner image.
+      - name: Lint shell scripts
+        run: shellcheck run.sh .githooks/pre-commit scripts/*.sh test/*.sh
+
+  actionlint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Lint workflows
+        run: ./scripts/lint-workflows.sh
+
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Test run.sh on the runner's shell
+        run: test/e2e.sh
+
+      - name: Build the image
+        run: docker build --tag letsencrypt-acm-renewal:local .
+
+      # The image's busybox shell and its real certbot and aws installs are
+      # on the path the container takes; only the two commands are faked.
+      - name: Test run.sh inside the image
+        run: >
+          docker run --rm --entrypoint ""
+          --volume "$PWD/test:/test:ro"
+          letsencrypt-acm-renewal:local sh /test/e2e.sh /run.sh
