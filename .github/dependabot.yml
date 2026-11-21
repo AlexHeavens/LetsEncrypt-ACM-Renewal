@@ -1,0 +1,24 @@
+# Dependabot opens a PR when a pinned version has a new release.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    assignees:
+      - AlexHeavens
+  # Dockerfiles in pins/ only record a release tag (for example gitleaks); / is the runtime image.
+  - package-ecosystem: docker
+    directories:
+      - /pins/*
+      - /
+    schedule:
+      interval: weekly
+    assignees:
+      - AlexHeavens
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    assignees:
+      - AlexHeavens
